@@ -1,76 +1,101 @@
-# Implementation Notes — ABH-1
+# Implementation Notes — ABH-2 / Sniplet
 
 ## Release summary
-ABH-1 currently lands as a **documentation-complete frontend prototype handoff** for TeamHub, not as the full-stack production system described in the original brief.
+ABH-2 lands as a real full-stack **Sniplet** delivery: a Next.js frontend wired to a live Express API, backed by PostgreSQL for auth, link persistence, and click analytics.
 
 ## What the repository contains
 Observed deliverables in the current branch:
-- a Next.js application shell
-- static mock data in `src/data.ts`
-- typed UI model definitions in `src/types.ts`
-- local helper utilities in `src/lib.ts`
-- presentational and interactive UI components for:
-  - dashboard summaries
-  - sidebar navigation
-  - task list presentation
-  - kanban board workflow
-  - calendar grouping
-  - task detail display
-  - subtasks
-  - comments
-  - activity feed
-  - notifications
-  - team members view
-  - command palette shell
+- a Next.js 14 App Router frontend at the repo root
+- frontend API helpers that require `NEXT_PUBLIC_API_URL`
+- an Express + TypeScript backend in `backend/`
+- PostgreSQL schema creation SQL in `database/schema.sql`
+- JWT auth and bcrypt password hashing
+- authenticated link management plus redirect-based click counting
 
-## Architecture observed from implementation
-### Frontend runtime
-- Framework: Next.js app router
+## Architecture summary
+### Frontend
+- Framework: Next.js 14 App Router
 - Language: TypeScript
-- Rendering mode: local frontend demo
-- Data source: static seeded in-memory data
-- Styling direction: dark, minimal product UI
+- Runtime role: authenticated UI for signup/login and link management
+- API integration: all live requests go through `process.env.NEXT_PUBLIC_API_URL`
 
-### Primary surfaces
-- `app/page.tsx` composes the TeamHub dashboard experience
-- `components/Sidebar.tsx` handles workspace and project navigation
-- `components/KanbanBoard.tsx` groups tasks by status for board view
-- `components/CalendarView.tsx` groups tasks by due-date buckets
-- `components/TaskDetailPanel.tsx` displays metadata, subtasks, comments, and activity
-- `components/TeamMembers.tsx` presents org membership and workload snapshot
+Frontend responsibilities include:
+- account signup
+- account login
+- fetching the current user's links
+- creating short links
+- deleting links
+- rendering the generated redirect URL and click totals
 
-## Gap against the original ABH-1 brief
-The ticket requested a much broader system:
-- React + TypeScript + Vite + Tailwind + shadcn/ui
-- Node.js + Express + TypeScript backend
-- Drizzle ORM with PostgreSQL
-- JWT authentication
-- organizations, projects, tasks, subtasks, comments, labels, notifications, and activity APIs
-- validation and pagination
-- deployment to Vercel, ECS Fargate, and RDS PostgreSQL
+### Backend
+- Runtime: Node.js + Express
+- Language: TypeScript
+- Database access: `pg`
+- Environment: `DATABASE_URL`, `PORT` (default `4000`), and JWT secret configuration
 
-Those requirements are **not implemented in code in this branch**.
+Documented API surface observed in implementation:
+- `GET /health`
+- `POST /auth/signup`
+- `POST /auth/login`
+- `POST /links`
+- `GET /links`
+- `GET /r/:slug`
+- `DELETE /links/:id`
 
-## Deployment readiness assessment
+Behavior notes:
+- signup normalizes email, hashes password, stores user, and returns a JWT
+- login verifies credentials and returns a JWT
+- link creation validates the target URL and generates a unique slug
+- listing returns links owned by the authenticated user
+- redirect increments `clicks` before redirecting to the saved target URL
+- deletion is ownership-scoped to the authenticated user
+
+### Database
+The schema in `database/schema.sql` defines:
+- `users`
+  - unique `email`
+  - `password_hash`
+  - `created_at`
+- `links`
+  - unique `slug`
+  - `target_url`
+  - `clicks INT DEFAULT 0`
+  - `owner_id` foreign key to `users(id)` with cascade delete
+  - `created_at`
+- supporting indexes on `owner_id` and `slug`
+
+## Deployment/readiness handoff
 ### Ready for
-- UI review
-- automated PR packaging
-- stakeholder demos
-- scope validation and planning handoff
+- code review
+- automated PR creation
+- local environment bring-up
+- deployment preparation with frontend/backend env wiring
 
-### Not ready for
-- production full-stack release
-- real authentication flows
-- persistent data operations
-- ECS/RDS deployment
-- end-to-end deployment verification against the original brief
+### Deployment requirements to confirm in target environment
+- PostgreSQL database exists and `database/schema.sql` has been applied
+- backend has valid `DATABASE_URL`, `PORT`, and JWT secret configuration
+- frontend has `NEXT_PUBLIC_API_URL` pointing at the deployed backend base URL
+- backend redirect base is reachable for `/r/:slug` traffic
 
-## Recommended next step
-To fully satisfy ABH-1, the next delivery cycle should either:
-1. explicitly re-scope the ticket as a frontend prototype, or
-2. implement the missing backend, database, auth, validation, and deployment layers described in `docs/PLAN.md` and `docs/SCHEMA.md`
+## Scope guardrails followed in this Scribe phase
+This phase intentionally stayed documentation-only.
+
+I did **not**:
+- modify `app/page.tsx`
+- modify `components/*.tsx`
+- modify `src/*`
+- modify `package.json`
+- modify backend source files
+- push a branch
+- create a PR manually
+
+## Suggested reviewer focus
+- verify environment variable setup in deployment targets
+- confirm `database/schema.sql` is applied before backend startup
+- smoke test signup, login, create link, list links, delete link, and redirect click counting
+- ensure the deployed frontend uses the correct backend URL in `NEXT_PUBLIC_API_URL`
 
 ## Supporting documents
-- Target architecture: `docs/PLAN.md`
-- Planned schema: `docs/SCHEMA.md`
-- QA/build review: `docs/PEDANT_REVIEW.md`
+- Release notes: `CHANGELOG.md`
+- QA review artifact: `docs/PEDANT_REVIEW.md`
+- Primary project overview: `README.md`

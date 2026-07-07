@@ -1,5 +1,27 @@
 # Changelog
 
+## [ABH-2] - 2026-07-07
+
+### Added
+- Full-stack Sniplet delivery documentation covering the Next.js 14 frontend, Express + TypeScript backend, and PostgreSQL schema
+- README instructions for installation with `npm install`, environment variable setup, database initialization, and local run flow
+- Implementation handoff notes for deployment and PR readiness in `docs/IMPLEMENTATION_NOTES.md`
+
+### Implemented in branch
+- JWT-based signup and login API flow
+- Authenticated link creation, listing, and deletion
+- Redirect endpoint that increments per-link click analytics
+- PostgreSQL schema for `users` and `links`
+- Frontend-to-backend live API integration through `NEXT_PUBLIC_API_URL`
+
+### Verified
+- Feature implementation commit present: `89072b7 feat(abh-2): implement Build a full-stack URL shortener called "Sniplet" with click analytics`
+- Pedant review artifact available for testing handoff in `docs/PEDANT_REVIEW.md`
+
+### Notes
+- This changelog entry documents release-facing scope for ticket ABH-2 only
+- Scribe phase intentionally avoided application source changes and limited updates to markdown handoff artifacts
+
 ## [ABH-1] - 2026-07-07
 
 ### Added
