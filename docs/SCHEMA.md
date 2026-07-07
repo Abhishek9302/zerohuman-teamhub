@@ -1,142 +1,130 @@
-# TeamHub — Database Schema Design (Drizzle / PostgreSQL)
+# Sniplet — Database Schema
 
-> Author: The Architect. Target: apps/api/src/db/schema.ts
+> Source of truth: [`database/schema.sql`](../database/schema.sql). This file is
+> idempotent (`CREATE TABLE IF NOT EXISTS`) so the deploy pipeline can re-apply
+> it safely on every release. This document explains each table, column, and
+> index and the reasoning behind them.
 
-## pgEnums
-- role: `owner | admin | member | viewer`
-- task_priority: `low | medium | high | urgent`
-- task_status: `todo | in_progress | in_review | done`
-- notification_type: `assignment | comment | mention | due_date | invite`
-- activity_action: `created | updated | status_changed | assigned | commented | archived | label_added | member_added`
+Sniplet stores just two entities in PostgreSQL: the **users** who own links and
+the **links** they shorten. Click analytics are tracked directly on the `links`
+row via an integer counter — there is no separate events table.
 
-## Tables (columns · types · constraints)
+Apply the schema before starting the backend:
 
-### users
-- id uuid pk default gen_random_uuid()
-- email text unique not null
-- password_hash text not null
-- name text not null
-- avatar_url text null
-- created_at timestamptz default now()
+```bash
+psql "$DATABASE_URL" -f database/schema.sql
+```
 
-### organizations
-- id uuid pk
-- name text not null
-- slug text unique not null
-- owner_id uuid → users.id
-- created_at timestamptz default now()
+---
 
-### org_members
-- id uuid pk
-- org_id uuid → organizations.id (cascade)
-- user_id uuid → users.id null (null until invite accepted)
-- invited_email text null
-- role role not null default 'member'
-- status text not null default 'active'  (pending|active)
-- created_at timestamptz default now()
-- UNIQUE(org_id, user_id)
+## Entity relationship
 
-### projects
-- id uuid pk
-- org_id uuid → organizations.id (cascade)
-- name text not null
-- description text null
-- color text not null default '#6366f1'
-- icon text null
-- archived boolean not null default false
-- created_by_id uuid → users.id
-- created_at timestamptz default now()
-- INDEX(org_id)
+```
+users (1) ────────< (many) links
+   id  ──────────────  owner_id     (ON DELETE CASCADE)
+```
 
-### project_members
-- id uuid pk
-- project_id uuid → projects.id (cascade)
-- user_id uuid → users.id
-- role role not null default 'member'
-- created_at timestamptz default now()
-- UNIQUE(project_id, user_id)
+- One user owns zero or more links.
+- Every link belongs to exactly one user via `owner_id`.
+- Deleting a user cascades to (removes) all of their links.
 
-### tasks
-- id uuid pk
-- project_id uuid → projects.id (cascade)
-- parent_task_id uuid → tasks.id null (self-ref for nested tasks)
-- title text not null
-- description text null
-- assignee_id uuid → users.id null
-- creator_id uuid → users.id
-- due_date timestamptz null
-- priority task_priority not null default 'medium'
-- status task_status not null default 'todo'
-- position integer not null default 0  (ordering within status column)
-- created_at timestamptz default now()
-- updated_at timestamptz default now()
-- INDEX(project_id, status), INDEX(assignee_id)
+---
 
-### subtasks
-- id uuid pk
-- task_id uuid → tasks.id (cascade)
-- title text not null
-- done boolean not null default false
-- assignee_id uuid → users.id null
-- position integer not null default 0
-- created_at timestamptz default now()
-- INDEX(task_id)
+## Table: `users`
 
-### comments
-- id uuid pk
-- task_id uuid → tasks.id (cascade)
-- author_id uuid → users.id
-- body text not null
-- mentions uuid[] default '{}'  (mentioned user ids)
-- created_at timestamptz default now()
-- updated_at timestamptz default now()
-- INDEX(task_id)
+Holds one row per registered account. Created and read by
+`POST /auth/signup` and `POST /auth/login`.
 
-### labels
-- id uuid pk
-- project_id uuid → projects.id (cascade)
-- name text not null
-- color text not null default '#64748b'
-- created_at timestamptz default now()
-- UNIQUE(project_id, name)
+| Column          | Type          | Constraints                | Notes                                                   |
+|-----------------|---------------|----------------------------|---------------------------------------------------------|
+| `id`            | `SERIAL`      | `PRIMARY KEY`              | Auto-incrementing integer, used as `links.owner_id`.    |
+| `email`         | `TEXT`        | `NOT NULL`, `UNIQUE`       | Stored trimmed + lowercased; `UNIQUE` blocks duplicates.|
+| `password_hash` | `TEXT`        | `NOT NULL`                 | bcrypt hash (cost 10). Plaintext is never stored.       |
+| `created_at`    | `TIMESTAMPTZ` | `NOT NULL DEFAULT NOW()`   | Account creation timestamp.                             |
 
-### task_labels
-- task_id uuid → tasks.id (cascade)
-- label_id uuid → labels.id (cascade)
-- PRIMARY KEY(task_id, label_id)
+**Notes**
 
-### notifications
-- id uuid pk
-- user_id uuid → users.id (recipient, cascade)
-- actor_id uuid → users.id null
-- type notification_type not null
-- entity_type text not null  (task|comment|org|project)
-- entity_id uuid not null
-- message text not null
-- read boolean not null default false
-- created_at timestamptz default now()
-- INDEX(user_id, read)
+- The application normalizes email (`trim().toLowerCase()`) before insert/lookup,
+  so the `UNIQUE` constraint is effectively case-insensitive in practice.
+- The signup flow first checks for an existing email and returns `409` on a
+  duplicate; the `UNIQUE` constraint is the final backstop against a race.
+- Only `id` and `email` are ever returned to the client — `password_hash` never
+  leaves the server.
 
-### activity_log
-- id uuid pk
-- org_id uuid → organizations.id (cascade)
-- project_id uuid → projects.id null
-- task_id uuid → tasks.id null
-- actor_id uuid → users.id
-- action activity_action not null
-- meta jsonb null  (before/after, field names, etc.)
-- created_at timestamptz default now()
-- INDEX(project_id, created_at), INDEX(task_id, created_at)
+---
 
-## Relations (drizzle relations())
-- users 1—* org_members, project_members, tasks(assignee/creator), comments, notifications
-- organizations 1—* org_members, projects, activity_log
-- projects 1—* project_members, tasks, labels, activity_log
-- tasks 1—* subtasks, comments, task_labels; self 1—* (parent/children)
-- labels *—* tasks via task_labels
+## Table: `links`
 
-## PostgreSQL MCP verification checklist (Pedant)
-- gen_random_uuid available (pgcrypto) — else use uuid_generate_v4/uuid-ossp
-- all FKs resolve; cascade deletes correct
-- enums created before tables referencing them
-- unique/indexes present as above
+Holds one row per short link. This is the core domain table and also the
+click-analytics store.
+
+| Column       | Type          | Constraints                                       | Notes                                                        |
+|--------------|---------------|---------------------------------------------------|--------------------------------------------------------------|
+| `id`         | `SERIAL`      | `PRIMARY KEY`                                     | Numeric identifier used by `DELETE /links/:id`.              |
+| `slug`       | `TEXT`        | `NOT NULL`, `UNIQUE`                              | 7-char crypto-random slug; the public part of the short URL. |
+| `target_url` | `TEXT`        | `NOT NULL`                                        | Destination URL (validated `http`/`https`, ≤ 2048 chars).    |
+| `clicks`     | `INT`         | `NOT NULL DEFAULT 0`                              | Redirect counter — the click-analytics metric.              |
+| `owner_id`   | `INT`         | `NOT NULL REFERENCES users(id) ON DELETE CASCADE` | Owning user; enforces per-user isolation.                    |
+| `created_at` | `TIMESTAMPTZ` | `NOT NULL DEFAULT NOW()`                          | Link creation timestamp (used for `ORDER BY ... DESC`).      |
+
+**Notes**
+
+- `slug` is generated by `generateSlug()` using `crypto.randomInt` over a
+  54-character ambiguity-free alphabet, so slugs are unguessable and
+  non-enumerable. The `UNIQUE` constraint guarantees no collisions; the API
+  retries generation up to 5 times before returning `503`.
+- `clicks` is incremented atomically on every redirect with a single statement:
+
+  ```sql
+  UPDATE links SET clicks = clicks + 1 WHERE slug = $1 RETURNING target_url;
+  ```
+
+  Doing the increment and target lookup in one round-trip keeps the counter
+  race-safe and avoids a read-then-write gap.
+- `owner_id` with `ON DELETE CASCADE` means all link queries can be scoped by the
+  authenticated user (`WHERE owner_id = $1`), and removing a user automatically
+  cleans up their links.
+
+---
+
+## Indexes
+
+```sql
+CREATE INDEX IF NOT EXISTS idx_links_owner_id ON links(owner_id);
+CREATE INDEX IF NOT EXISTS idx_links_slug     ON links(slug);
+```
+
+| Index                | Column     | Supports                                                             |
+|----------------------|------------|---------------------------------------------------------------------|
+| `idx_links_owner_id` | `owner_id` | `GET /links` — listing a single user's links quickly.               |
+| `idx_links_slug`     | `slug`     | `GET /r/:slug` redirect lookups and slug-collision checks on create.|
+
+> The `UNIQUE` constraint on `links.slug` already creates a unique index; the
+> explicit `idx_links_slug` is declared for clarity/portability and is harmless
+> if redundant. `users.email` is likewise backed by a unique index from its
+> `UNIQUE` constraint.
+
+---
+
+## Query map (which endpoint touches what)
+
+| Endpoint            | SQL (parameterized)                                                              |
+|---------------------|----------------------------------------------------------------------------------|
+| `GET /health`       | `SELECT 1`                                                                       |
+| `POST /auth/signup` | `SELECT id FROM users WHERE email=$1` → `INSERT INTO users (...) RETURNING ...`  |
+| `POST /auth/login`  | `SELECT id, email, password_hash FROM users WHERE email=$1`                      |
+| `POST /links`       | `SELECT id FROM links WHERE slug=$1` (collision check) → `INSERT INTO links ...` |
+| `GET /links`        | `SELECT * FROM links WHERE owner_id=$1 ORDER BY created_at DESC`                  |
+| `GET /r/:slug`      | `UPDATE links SET clicks = clicks + 1 WHERE slug=$1 RETURNING target_url`         |
+| `DELETE /links/:id` | `DELETE FROM links WHERE id=$1 AND owner_id=$2 RETURNING id`                      |
+
+All statements use `pg` bind parameters (`$1`, `$2`, …); no user input is ever
+concatenated into SQL.
+
+---
+
+## Related documentation
+
+- [`docs/API.md`](API.md) — request/response shapes for every endpoint.
+- [`SECURITY.md`](../SECURITY.md) — password hashing, slug entropy, TLS to Postgres.
+- [`docs/ARCHITECTURE.md`](ARCHITECTURE.md) — how the frontend and backend fit together.

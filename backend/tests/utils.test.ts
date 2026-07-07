@@ -1,6 +1,6 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { generateSlug, isValidUrl, isPrivateOrReservedHost } from '../src/utils';
+import { generateSlug, isValidUrl, isPrivateOrReservedHost, MAX_TARGET_URL_LENGTH } from '../src/utils';
 
 const ALLOWED = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789';
 // Ambiguous characters that MUST NOT appear in slugs (avoids i/l/1, o/0 confusion).
@@ -97,6 +97,19 @@ describe('isValidUrl', () => {
     assert.equal(isValidUrl('https://example.com/path'), true);
     assert.equal(isValidUrl('http://172.15.0.1/'), true); // just outside the private 172.16/12 block
     assert.equal(isValidUrl('http://8.8.8.8/'), true);
+  });
+
+  test('enforces the MAX_TARGET_URL_LENGTH cap at the boundary', () => {
+    const prefix = 'https://example.com/';
+    // A URL of exactly MAX_TARGET_URL_LENGTH characters is accepted...
+    const atLimit = prefix + 'a'.repeat(MAX_TARGET_URL_LENGTH - prefix.length);
+    assert.equal(atLimit.length, MAX_TARGET_URL_LENGTH);
+    assert.equal(isValidUrl(atLimit), true);
+
+    // ...and a single character over the limit is rejected.
+    const overLimit = atLimit + 'a';
+    assert.equal(overLimit.length, MAX_TARGET_URL_LENGTH + 1);
+    assert.equal(isValidUrl(overLimit), false);
   });
 });
 
