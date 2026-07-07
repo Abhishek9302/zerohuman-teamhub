@@ -1,5 +1,5 @@
 {
-  "name": "teamhub",
+  "name": "sniplet",
   "version": "1.0.0",
   "private": true,
   "scripts": {
@@ -7,13 +7,16 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "backend:dev": "npm --prefix backend run dev",
+    "backend:build": "npm --prefix backend run build",
+    "backend:start": "npm --prefix backend run start"
   },
   "dependencies": {
+    "lucide-react": "^0.468.0",
     "next": "14.2.5",
     "react": "18.3.1",
-    "react-dom": "18.3.1",
-    "lucide-react": "^0.468.0"
+    "react-dom": "18.3.1"
   },
   "devDependencies": {
     "@types/node": "^22.10.5",

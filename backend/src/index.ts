@@ -1,0 +1,157 @@
+import 'dotenv/config';
+import bcrypt from 'bcryptjs';
+import cors from 'cors';
+import express from 'express';
+import { pool } from './db';
+import { createToken, requireAuth, type AuthenticatedRequest } from './auth';
+import { generateSlug, isValidUrl } from './utils';
+
+const app = express();
+const port = Number(process.env.PORT || 4000);
+
+app.use(cors());
+app.use(express.json());
+
+app.get('/health', async (_request, response) => {
+  await pool.query('SELECT 1');
+  response.json({ ok: true });
+});
+
+app.post('/auth/signup', async (request, response) => {
+  const { email, password } = request.body as { email?: string; password?: string };
+
+  if (!email || !password || password.length < 6) {
+    return response.status(400).json({ error: 'Email and password of at least 6 characters are required.' });
+  }
+
+  const normalizedEmail = email.trim().toLowerCase();
+
+  try {
+    const existing = await pool.query('SELECT id FROM users WHERE email = $1', [normalizedEmail]);
+    if (existing.rowCount) {
+      return response.status(409).json({ error: 'Email already exists.' });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+    const inserted = await pool.query(
+      'INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING id, email',
+      [normalizedEmail, passwordHash]
+    );
+
+    const user = inserted.rows[0] as { id: number; email: string };
+    const token = createToken(user.id, user.email);
+    return response.status(201).json({ token, user });
+  } catch (error) {
+    console.error('SIGNUP_ERROR', error);
+    return response.status(500).json({ error: 'Unable to create account.' });
+  }
+});
+
+app.post('/auth/login', async (request, response) => {
+  const { email, password } = request.body as { email?: string; password?: string };
+
+  if (!email || !password) {
+    return response.status(400).json({ error: 'Email and password are required.' });
+  }
+
+  try {
+    const result = await pool.query('SELECT id, email, password_hash FROM users WHERE email = $1', [email.trim().toLowerCase()]);
+    if (!result.rowCount) {
+      return response.status(401).json({ error: 'Invalid credentials.' });
+    }
+
+    const user = result.rows[0] as { id: number; email: string; password_hash: string };
+    const valid = await bcrypt.compare(password, user.password_hash);
+    if (!valid) {
+      return response.status(401).json({ error: 'Invalid credentials.' });
+    }
+
+    const token = createToken(user.id, user.email);
+    return response.json({ token, user: { id: user.id, email: user.email } });
+  } catch (error) {
+    console.error('LOGIN_ERROR', error);
+    return response.status(500).json({ error: 'Unable to login.' });
+  }
+});
+
+app.post('/links', requireAuth, async (request: AuthenticatedRequest, response) => {
+  const { targetUrl } = request.body as { targetUrl?: string };
+
+  if (!targetUrl || !isValidUrl(targetUrl)) {
+    return response.status(400).json({ error: 'A valid targetUrl is required.' });
+  }
+
+  try {
+    let slug = generateSlug();
+    let attempts = 0;
+
+    while (attempts < 5) {
+      const existing = await pool.query('SELECT id FROM links WHERE slug = $1', [slug]);
+      if (!existing.rowCount) {
+        break;
+      }
+      slug = generateSlug();
+      attempts += 1;
+    }
+
+    const inserted = await pool.query(
+      'INSERT INTO links (slug, target_url, owner_id) VALUES ($1, $2, $3) RETURNING *',
+      [slug, targetUrl, request.user!.userId]
+    );
+
+    return response.status(201).json(inserted.rows[0]);
+  } catch (error) {
+    console.error('CREATE_LINK_ERROR', error);
+    return response.status(500).json({ error: 'Unable to create link.' });
+  }
+});
+
+app.get('/links', requireAuth, async (request: AuthenticatedRequest, response) => {
+  try {
+    const result = await pool.query('SELECT * FROM links WHERE owner_id = $1 ORDER BY created_at DESC', [request.user!.userId]);
+    return response.json(result.rows);
+  } catch (error) {
+    console.error('LIST_LINKS_ERROR', error);
+    return response.status(500).json({ error: 'Unable to load links.' });
+  }
+});
+
+app.get('/r/:slug', async (request, response) => {
+  const { slug } = request.params;
+
+  try {
+    const result = await pool.query('UPDATE links SET clicks = clicks + 1 WHERE slug = $1 RETURNING target_url', [slug]);
+    if (!result.rowCount) {
+      return response.status(404).json({ error: 'Short link not found.' });
+    }
+
+    return response.redirect(result.rows[0].target_url as string);
+  } catch (error) {
+    console.error('REDIRECT_ERROR', error);
+    return response.status(500).json({ error: 'Unable to redirect.' });
+  }
+});
+
+app.delete('/links/:id', requireAuth, async (request: AuthenticatedRequest, response) => {
+  const id = Number(request.params.id);
+
+  if (Number.isNaN(id)) {
+    return response.status(400).json({ error: 'Invalid link id.' });
+  }
+
+  try {
+    const deleted = await pool.query('DELETE FROM links WHERE id = $1 AND owner_id = $2 RETURNING id', [id, request.user!.userId]);
+    if (!deleted.rowCount) {
+      return response.status(404).json({ error: 'Link not found.' });
+    }
+
+    return response.json({ success: true });
+  } catch (error) {
+    console.error('DELETE_LINK_ERROR', error);
+    return response.status(500).json({ error: 'Unable to delete link.' });
+  }
+});
+
+app.listen(port, () => {
+  console.log(`Sniplet backend listening on port ${port}`);
+});
