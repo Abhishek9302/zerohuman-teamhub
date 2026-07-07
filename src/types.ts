@@ -2,6 +2,7 @@ export type Role = 'Owner' | 'Admin' | 'Member' | 'Viewer';
 export type Priority = 'Low' | 'Medium' | 'High' | 'Urgent';
 export type TaskStatus = 'Todo' | 'In Progress' | 'In Review' | 'Done';
 export type NotificationType = 'assignment' | 'comment' | 'due_date' | 'invite';
+export type View = 'dashboard' | 'projects' | 'notifications' | 'team' | 'settings';
 
 export interface User {
   id: string;

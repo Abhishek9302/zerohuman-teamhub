@@ -1,11 +1,6 @@
-import { teamHubData } from './data';
 import type { Project, Task, TaskStatus } from './types';
 
 export const taskStatuses: TaskStatus[] = ['Todo', 'In Progress', 'In Review', 'Done'];
-
-export function getPrimaryProject(): Project {
-  return teamHubData.projects[0];
-}
 
 export function groupTasksByStatus(tasks: Task[]) {
   return taskStatuses.map((status) => ({
@@ -29,12 +24,4 @@ export function getProjectTaskCounts(projects: Project[]) {
     total: project.tasks.length,
     done: project.tasks.filter((task) => task.status === 'Done').length
   }));
-}
-
-export function getActivityFeed() {
-  return teamHubData.projects.flatMap((project) =>
-    project.tasks.flatMap((task) =>
-      task.activity.map((item) => ({ ...item, project: project.name }))
-    )
-  );
 }

@@ -300,6 +300,96 @@ td p { margin-top: 8px; color: var(--muted); font-size: 0.92rem; }
   color: var(--text);
 }
 
+/* === Interactive enhancements === */
+
+/* Light mode support */
+[data-theme='light'] {
+  color-scheme: light;
+  --bg: #f0f4f8;
+  --bg-elevated: rgba(240, 244, 248, 0.96);
+  --panel: rgba(255, 255, 255, 0.9);
+  --panel-strong: rgba(248, 250, 252, 0.96);
+  --border: rgba(15, 23, 42, 0.12);
+  --text: #0f172a;
+  --muted: #64748b;
+  --shadow: 0 8px 40px rgba(15, 23, 42, 0.1);
+}
+[data-theme='light'] body {
+  background: linear-gradient(180deg, #f8fafc 0%, #f0f4f8 100%);
+}
+[data-theme='light'] .kanban-card,
+[data-theme='light'] .calendar-day,
+[data-theme='light'] .meta-card,
+[data-theme='light'] .command-trigger,
+[data-theme='light'] .ghost-button {
+  background: rgba(248, 250, 252, 0.9);
+}
+
+/* Nav link as button */
+.nav-link {
+  background: none;
+  border: none;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+.nav-link:hover { color: var(--text); }
+
+/* Priority colors */
+.badge.priority--urgent { background: rgba(239,68,68,0.18); color: #fca5a5; }
+.badge.priority--high { background: rgba(245,158,11,0.18); color: #fbbf24; }
+.badge.priority--medium { background: rgba(59,130,246,0.18); color: #93c5fd; }
+.badge.priority--low { background: rgba(34,197,94,0.18); color: #86efac; }
+
+/* Clickable task rows */
+.task-row-hover:hover td { background: rgba(139,92,246,0.06); }
+
+/* Ghost button active state */
+.ghost-button.active {
+  background: var(--accent-soft);
+  border-color: rgba(139, 92, 246, 0.3);
+  color: var(--text);
+}
+
+/* Sidebar overflow */
+.sidebar { overflow-y: auto; }
+.sidebar__projects { overflow-y: auto; flex: 1; }
+
+/* Section card padding in content shell */
+.content-shell > div > .panel,
+.content-shell > div > section {
+  margin-bottom: 0;
+}
+
+/* Smooth scroll for content */
+.content-shell > div {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* Team card role selector */
+.team-card select {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 0.82rem;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+/* Notification unread dot */
+.notification-list .unread strong { color: var(--text); }
+
+/* Kanban section padding */
+.kanban-shell { padding: 22px; }
+
+/* Fix stat card tone for violet */
+.stat-card[data-tone='violet'] strong { color: #c4b5fd; }
+
 @media (max-width: 1200px) {
   .app-shell,
   .content-grid,
