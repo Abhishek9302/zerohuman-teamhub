@@ -127,9 +127,17 @@ Configured in `db.ts`:
 
 - All errors are returned as a uniform `{ "error": "<message>" }` envelope with
   user-safe messages.
+- A catch-all **404 handler** and a **centralized error-handling middleware**
+  (`app.ts`) ensure this holds even for framework-level failures: unknown routes
+  return `404 { "error": "Not found." }`, malformed request bodies return
+  `400 { "error": "Request body is not valid JSON." }`, and payloads over the
+  16 kb cap return `413 { "error": "Request body is too large." }`. Without this,
+  body-parser errors fall through to Express's default handler, which renders an
+  **HTML page containing the stack trace and absolute filesystem paths** outside
+  production — the error handler closes that information-disclosure leak.
 - Internal failures are logged server-side with a stable tag (e.g.
-  `SIGNUP_ERROR`, `REDIRECT_ERROR`) but the client only receives a generic
-  message — stack traces and driver details are never leaked.
+  `SIGNUP_ERROR`, `REDIRECT_ERROR`, `UNHANDLED_ERROR`) but the client only
+  receives a generic message — stack traces and driver details are never leaked.
 - `GET /health` returns `503 { "ok": false }` when the database probe fails,
   giving load balancers a clear signal without exposing internals.
 
