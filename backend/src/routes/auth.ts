@@ -1,7 +1,7 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
 import { query } from "../db";
-import { signToken } from "../auth";
+import { signToken, requireAuth, AuthedRequest } from "../auth";
 
 const router = Router();
 
@@ -59,6 +59,16 @@ router.post("/login", async (req, res) => {
     console.error("login error", err);
     return res.status(500).json({ error: "Login failed" });
   }
+});
+
+// Return the currently authenticated user (used to rehydrate the session on reload).
+router.get("/me", requireAuth, async (req: AuthedRequest, res) => {
+  const rows = await query(
+    "SELECT id, name, email, role, avatar FROM users WHERE id = $1",
+    [req.userId],
+  );
+  if (rows.length === 0) return res.status(404).json({ error: "User not found" });
+  return res.json({ user: rows[0] });
 });
 
 export default router;

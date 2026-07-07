@@ -155,6 +155,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     (async () => {
       if (getToken()) {
         try {
+          const { user } = await api.me();
+          setCurrentUser({
+            id: user.id, name: user.name, email: user.email,
+            role: (user.role as User['role']) || 'Owner',
+            avatar: user.avatar || user.name.slice(0, 2).toUpperCase(), taskCount: 0,
+          });
           await hydrate();
           setAuthed(true);
         } catch {

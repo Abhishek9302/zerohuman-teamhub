@@ -47,6 +47,7 @@ export interface ApiProject {
 
 export const api = {
   health: () => request<{ status: string }>('/health'),
+  me: () => request<{ user: ApiUser }>('/auth/me'),
   signup: (name: string, email: string, password: string) =>
     request<{ token: string; user: ApiUser }>('/auth/signup', {
       method: 'POST',
