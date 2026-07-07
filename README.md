@@ -1,93 +1,114 @@
 # TeamHub
 
-TeamHub is a project management dashboard UI inspired by Asana and Jira.
+TeamHub is a polished team project management app prototype inspired by Asana, Jira, Linear, and Notion.
 
-This branch currently delivers a polished, buildable **frontend demo** implemented with **Next.js + React + TypeScript** and local mock data. It includes the core product surfaces for a team workspace, but it is **not yet the full-stack system from the original ticket**.
+This repository currently delivers a **buildable documentation-backed frontend demo** for ticket **ABH-1**, with release notes and implementation handoff artifacts prepared for automated PR flow.
 
-## What was built
+## ABH-1 overview
+The original ticket asked for a **full-stack team project management platform** with:
+- React + TypeScript + Vite + Tailwind CSS + shadcn/ui
+- Node.js + Express + TypeScript backend
+- Drizzle ORM + PostgreSQL
+- JWT authentication
+- organizations, projects, tasks, subtasks, comments, labels, notifications, and activity logs
+- deployable infrastructure across Vercel, AWS ECS Fargate, and AWS RDS PostgreSQL
 
-### Implemented in this repo
-- Dashboard summary cards for personal task status
-- Sidebar navigation with project list
-- Project task views:
-  - List view
-  - Kanban board view
-  - Calendar view
-- Task detail panel with:
-  - description
+## What was built in this branch
+The current implementation in the repo is a **frontend demo/prototype** that includes:
+- dashboard summary cards for my tasks, overdue work, due today, and completed work
+- sidebar navigation with project list
+- task surfaces in:
+  - list view
+  - kanban board view
+  - calendar view
+- task detail panel with:
+  - title and description
+  - assignee and status information
   - subtasks
   - comments
   - activity feed
-- Team members page with role and workload snapshot
-- Notifications panel
-- Command palette shell
-- Responsive dark UI styling and demo interactions
+- team members page showing organization access and workload snapshot
+- notifications panel
+- command palette shell
+- responsive dark UI styling suitable for desktop and tablet demo review
 
-### Not included in the current implementation
-The original ABH-1 brief asked for a full-stack platform with:
-- JWT authentication
-- organizations and invitations
-- role-based backend access control
-- REST API
-- PostgreSQL + Drizzle ORM
-- deployable backend on ECS/RDS
-- Vercel/ECS/RDS integration
+## Current implementation status
+This branch is **not yet the full-stack product described in the original ticket**.
 
-Those backend and deployment pieces are **documented in `docs/PLAN.md` and `docs/SCHEMA.md`**, but they are **not implemented in the current codebase**.
+### Implemented now
+- buildable UI application
+- mock seeded data for projects, tasks, members, comments, and activity
+- typed frontend data model helpers
+- release documentation and QA handoff artifacts
 
-## Tech stack in the current branch
+### Not implemented yet
+- JWT signup/login/logout flows
+- Express REST API
+- PostgreSQL database
+- Drizzle ORM models and migrations
+- server-side validation and pagination
+- real organization/project/task persistence
+- AWS ECS/RDS deployment integration
+- Vercel-to-backend production wiring
+
+## Tech stack currently present in the repo
 - Next.js 14
 - React 18
 - TypeScript
 - lucide-react
 
 ## Project structure
-- `app/` — Next.js app shell
-- `components/` — dashboard, board, calendar, task, team, and notification UI
-- `src/data.ts` — seeded mock TeamHub data
-- `src/types.ts` — UI data model types
-- `src/lib.ts` — client-side data helpers
-- `docs/PLAN.md` — original target architecture plan
+- `app/` — application shell and route entrypoints
+- `components/` — dashboard, task, board, team, and notification UI
+- `src/data.ts` — seeded TeamHub mock data
+- `src/types.ts` — typed frontend models
+- `src/lib.ts` — UI data helpers
+- `docs/PLAN.md` — target architecture plan for the intended full-stack version
 - `docs/SCHEMA.md` — planned database schema
-- `docs/PEDANT_REVIEW.md` — QA/build review notes
+- `docs/PEDANT_REVIEW.md` — QA/build verification artifact
+- `docs/IMPLEMENTATION_NOTES.md` — release and handoff notes
 
-## Getting started
+## Setup
+Install dependencies:
 
-### Install
 ```bash
 npm install
 ```
 
-### Run locally
+## Run locally
+Start the development server:
+
 ```bash
 npm run dev
 ```
 
-Then open:
+Then open the local app URL shown by Next.js in your terminal.
 
-```text
-http://localhost:3000
-```
+## Build
+Create a production build:
 
-### Production build
 ```bash
 npm run build
-npm run start
 ```
 
-### Type checking
+## Typecheck
+Run TypeScript validation:
+
 ```bash
 npm run typecheck
 ```
 
 ## Release readiness notes
-- `npm run build` passes
-- `npm run typecheck` passes
-- Current output is suitable as a UI prototype/demo
-- Current output is **not release-ready as the originally requested full-stack app**
+For ABH-1 documentation handoff, this branch is ready for:
+- code review
+- UI walkthroughs
+- automated PR creation
+- scope clarification between prototype delivery and full-stack production delivery
 
-## Documentation handoff
+It is **not** ready for production deployment as the originally requested Vercel + ECS + RDS stack because the backend and infrastructure portions are not implemented in this branch.
+
+## Handoff documents
 - Architecture target: `docs/PLAN.md`
-- Planned schema: `docs/SCHEMA.md`
-- Validation/review notes: `docs/PEDANT_REVIEW.md`
-- Delivery gap summary: `docs/IMPLEMENTATION_NOTES.md`
+- Schema target: `docs/SCHEMA.md`
+- QA review: `docs/PEDANT_REVIEW.md`
+- Delivery notes: `docs/IMPLEMENTATION_NOTES.md`
