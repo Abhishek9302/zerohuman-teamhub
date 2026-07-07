@@ -82,16 +82,19 @@ app.post('/links', requireAuth, async (request: AuthenticatedRequest, response) 
   }
 
   try {
-    let slug = generateSlug();
-    let attempts = 0;
+    let slug: string | null = null;
 
-    while (attempts < 5) {
-      const existing = await pool.query('SELECT id FROM links WHERE slug = $1', [slug]);
+    for (let attempts = 0; attempts < 5; attempts += 1) {
+      const candidate = generateSlug();
+      const existing = await pool.query('SELECT id FROM links WHERE slug = $1', [candidate]);
       if (!existing.rowCount) {
+        slug = candidate;
         break;
       }
-      slug = generateSlug();
-      attempts += 1;
+    }
+
+    if (!slug) {
+      return response.status(503).json({ error: 'Unable to generate a unique short link right now.' });
     }
 
     const inserted = await pool.query(
