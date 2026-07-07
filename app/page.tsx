@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { LogOut } from 'lucide-react';
 import { AuthPanel } from '@/components/AuthPanel';
 import { CreateLinkForm } from '@/components/CreateLinkForm';
+import { FeatureList } from '@/components/FeatureList';
 import { HeroStats } from '@/components/HeroStats';
 import { LinksTable } from '@/components/LinksTable';
 import { createLink, deleteLink, fetchLinks, login, signup } from '@/src/lib';
@@ -159,34 +160,40 @@ export default function HomePage() {
           ) : null}
         </section>
 
-        <div className="content-grid two-column">
-          <AuthPanel
-            email={email}
-            error={authError}
-            loading={authLoading}
-            mode={mode}
-            onEmailChange={setEmail}
-            onModeChange={setMode}
-            onPasswordChange={setPassword}
-            onSubmit={handleAuthSubmit}
-            password={password}
-          />
-          <CreateLinkForm
-            error={linkError}
-            loading={createLoading}
-            onSubmit={handleCreateLink}
-            onTargetUrlChange={setTargetUrl}
-            targetUrl={targetUrl}
-          />
-        </div>
+        {token ? (
+          <>
+            <CreateLinkForm
+              error={linkError}
+              loading={createLoading}
+              onSubmit={handleCreateLink}
+              onTargetUrlChange={setTargetUrl}
+              targetUrl={targetUrl}
+            />
 
-        <LinksTable
-          deletingId={deletingId}
-          links={links}
-          loading={linksLoading}
-          onDelete={handleDeleteLink}
-          onRefresh={token ? () => void refreshLinks(token) : undefined}
-        />
+            <LinksTable
+              deletingId={deletingId}
+              links={links}
+              loading={linksLoading}
+              onDelete={handleDeleteLink}
+              onRefresh={() => void refreshLinks(token)}
+            />
+          </>
+        ) : (
+          <div className="content-grid two-column">
+            <AuthPanel
+              email={email}
+              error={authError}
+              loading={authLoading}
+              mode={mode}
+              onEmailChange={setEmail}
+              onModeChange={setMode}
+              onPasswordChange={setPassword}
+              onSubmit={handleAuthSubmit}
+              password={password}
+            />
+            <FeatureList />
+          </div>
+        )}
       </div>
     </main>
   );
