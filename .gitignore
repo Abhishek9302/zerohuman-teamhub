@@ -22,3 +22,5 @@ out/
 *.pyc
 __pycache__/
 .venv/
+backend/node_modules/
+backend/dist/

@@ -16,6 +16,7 @@ import { NewProjectModal } from '@/components/NewProjectModal';
 import { InviteMemberModal } from '@/components/InviteMemberModal';
 import { ProjectsView } from '@/components/ProjectsView';
 import { SettingsView } from '@/components/SettingsView';
+import { AuthScreen } from '@/components/AuthScreen';
 
 function DashboardContent() {
   return (
@@ -55,7 +56,15 @@ function TeamContent() {
 }
 
 export default function AppShell() {
-  const { activeView } = useApp();
+  const { activeView, authed, authLoading } = useApp();
+
+  if (authLoading) {
+    return <div className="auth-wrap"><div className="auth-loading">Loading TeamHub…</div></div>;
+  }
+
+  if (!authed) {
+    return <AuthScreen />;
+  }
 
   return (
     <main className="app-shell">
