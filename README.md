@@ -56,8 +56,11 @@ The `database/schema.sql` file creates the required PostgreSQL schema:
 - `src/` — frontend API helpers and shared types
 - `backend/` — Express API server, auth, db access, and utilities
 - `database/schema.sql` — PostgreSQL schema
-- `docs/PEDANT_REVIEW.md` — testing/review handoff artifact
+- `docs/ARCHITECTURE.md` — system architecture and data flow
+- `docs/API.md` — REST API reference
+- `docs/SCHEMA.md` — database schema reference
 - `docs/IMPLEMENTATION_NOTES.md` — architecture and release handoff summary
+- `docs/PEDANT_REVIEW.md` — prior QA review artifact from the ABH-1 (TeamHub) branch
 
 ## Setup
 Install dependencies from the repository root:
@@ -88,7 +91,29 @@ Create an environment file inside `backend/` and set:
 DATABASE_URL=postgres://postgres:postgres@localhost:5432/sniplet
 PORT=4000
 JWT_SECRET=your-development-secret
+
+# Optional (recommended in production)
+CORS_ORIGIN=http://localhost:3000
+NODE_ENV=development
+PG_POOL_MAX=10
 ```
+
+Backend environment variables at a glance:
+
+| Variable       | Required | Default          | Purpose                                                           |
+|----------------|----------|------------------|-------------------------------------------------------------------|
+| `DATABASE_URL` | yes      | —                | Postgres connection string (startup fails if unset)              |
+| `PORT`         | no       | `4000`           | Port the API listens on                                           |
+| `JWT_SECRET`   | prod     | ephemeral (dev)  | JWT signing secret — **must be ≥ 32 chars in production**         |
+| `CORS_ORIGIN`  | prod     | permissive       | Comma-separated allowlist of browser origins                      |
+| `NODE_ENV`     | no       | —                | Set to `production` to enforce the strict `JWT_SECRET` rule       |
+| `PG_POOL_MAX`  | no       | `10`             | Max Postgres connection-pool size                                 |
+
+In production the server **refuses to start** unless `JWT_SECRET` is at least 32
+characters. In development an ephemeral secret is generated automatically if one
+is not provided (tokens are then invalidated on restart). TLS to Postgres is
+enabled automatically for `sslmode=require` / AWS RDS connection strings. See
+[`SECURITY.md`](SECURITY.md) for the full security model.
 
 ## Database setup
 Apply the schema in `database/schema.sql` to your PostgreSQL database before starting the backend.
@@ -141,9 +166,9 @@ npm run typecheck
 ### Backend
 ```bash
 cd backend
-npm run dev
-npm run build
-npm run typecheck
+npm run dev    # tsx watch src/index.ts
+npm run build  # tsc -p tsconfig.json -> dist/
+npm run start  # node dist/index.js
 ```
 
 ## Release readiness
@@ -154,7 +179,25 @@ For ABH-2, the repository now contains the expected full-stack delivery shape:
 - click analytics via redirect counting
 - deployment-facing documentation and handoff notes
 
+### Deployment checklist
+Before cutting a release or merging the automated PR, confirm:
+- PostgreSQL is reachable from the backend runtime
+- `database/schema.sql` has been applied to the target database
+- backend env includes `DATABASE_URL`, `PORT`, and a strong `JWT_SECRET`
+- frontend env includes `NEXT_PUBLIC_API_URL` pointing to the deployed backend base URL
+- browser CORS origin is allowed by backend configuration
+- smoke test passes for signup, login, create link, list links, delete link, and redirect click counting
+
+## Documentation
+Start at the documentation index: [`docs/README.md`](docs/README.md).
+
+- **Architecture:** `docs/ARCHITECTURE.md` — how the frontend, backend, and database fit together, state ownership, the middleware pipeline, and end-to-end data flow (including click analytics).
+- **API reference:** `docs/API.md` — every endpoint, request/response shape, auth rules, rate limiting, error codes, data model, and end-to-end curl examples.
+- **Frontend reference:** `docs/FRONTEND.md` — component-by-component props, the state model, session handling, and the API client.
+- **Database schema:** `docs/SCHEMA.md` — the `users` and `links` tables, indexes, and the query map for each endpoint.
+- **Security:** `SECURITY.md` — auth model, secret handling, input validation, transport/CORS hardening, and deployment checklist.
+
 ## Handoff documents
-- QA review: `docs/PEDANT_REVIEW.md`
 - Implementation handoff: `docs/IMPLEMENTATION_NOTES.md`
+- Prior QA review (ABH-1 / TeamHub branch): `docs/PEDANT_REVIEW.md`
 - Release notes: `CHANGELOG.md`

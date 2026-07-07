@@ -77,6 +77,27 @@ The schema in `database/schema.sql` defines:
 - frontend has `NEXT_PUBLIC_API_URL` pointing at the deployed backend base URL
 - backend redirect base is reachable for `/r/:slug` traffic
 
+### Actionable release checklist
+1. Apply `database/schema.sql` to the target Postgres instance.
+2. Set backend env: `DATABASE_URL`, `PORT`, `JWT_SECRET`, and if needed `CORS_ORIGIN`.
+3. Set frontend env: `NEXT_PUBLIC_API_URL=<deployed backend origin>`.
+4. Build both apps:
+   - root: `npm run build`
+   - backend: `cd backend && npm run build`
+5. Run the release smoke test:
+   - `POST /auth/signup`
+   - `POST /auth/login`
+   - create a link from the UI or `POST /links`
+   - verify `GET /links` shows the new record
+   - open `GET /r/:slug` and confirm the redirect succeeds
+   - verify the click count increments in the dashboard/API
+   - delete the link and confirm it disappears
+
+### Merge/PR notes for the next role
+- The required implementation commit is present: `89072b7 feat(abh-2): implement Build a full-stack URL shortener called "Sniplet" with click analytics`.
+- Pedant validation artifacts already exist in `docs/PEDANT_REVIEW.md`.
+- This Scribe pass made markdown-only release-prep updates; no application source files were changed.
+
 ## Scope guardrails followed in this Scribe phase
 This phase intentionally stayed documentation-only.
 

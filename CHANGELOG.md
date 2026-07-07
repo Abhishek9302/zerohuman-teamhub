@@ -18,6 +18,10 @@
 - Feature implementation commit present: `89072b7 feat(abh-2): implement Build a full-stack URL shortener called "Sniplet" with click analytics`
 - Pedant review artifact available for testing handoff in `docs/PEDANT_REVIEW.md`
 
+### Release handoff
+- Deployment reviewers should verify `NEXT_PUBLIC_API_URL`, `DATABASE_URL`, `PORT`, `JWT_SECRET`, and schema application before merge/release
+- Recommended smoke test: signup → login → create link → list links → open redirect URL → confirm click count increments → delete link
+
 ### Notes
 - This changelog entry documents release-facing scope for ticket ABH-2 only
 - Scribe phase intentionally avoided application source changes and limited updates to markdown handoff artifacts
