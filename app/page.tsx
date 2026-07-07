@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { LogOut } from 'lucide-react';
 import { AuthPanel } from '@/components/AuthPanel';
 import { CreateLinkForm } from '@/components/CreateLinkForm';
 import { HeroStats } from '@/components/HeroStats';
@@ -151,7 +152,8 @@ export default function HomePage() {
             <strong>{linksLoading ? 'Refreshing links…' : statusMessage}</strong>
           </div>
           {token ? (
-            <button className="ghost-button" onClick={handleLogout} type="button">
+            <button className="ghost-button ghost-button--icon" onClick={handleLogout} type="button">
+              <LogOut size={16} aria-hidden="true" />
               Logout
             </button>
           ) : null}
@@ -178,7 +180,13 @@ export default function HomePage() {
           />
         </div>
 
-        <LinksTable deletingId={deletingId} links={links} onDelete={handleDeleteLink} />
+        <LinksTable
+          deletingId={deletingId}
+          links={links}
+          loading={linksLoading}
+          onDelete={handleDeleteLink}
+          onRefresh={token ? () => void refreshLinks(token) : undefined}
+        />
       </div>
     </main>
   );

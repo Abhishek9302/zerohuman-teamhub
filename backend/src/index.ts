@@ -2,6 +2,8 @@ import 'dotenv/config';
 import bcrypt from 'bcryptjs';
 import cors from 'cors';
 import express from 'express';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import { pool } from './db';
 import { createToken, requireAuth, type AuthenticatedRequest } from './auth';
 import { generateSlug, isValidUrl } from './utils';
@@ -9,19 +11,66 @@ import { generateSlug, isValidUrl } from './utils';
 const app = express();
 const port = Number(process.env.PORT || 4000);
 
-app.use(cors());
-app.use(express.json());
+// bcryptjs silently truncates input beyond 72 bytes, so cap password length to
+// keep the whole secret meaningful and to bound request work.
+const MAX_EMAIL_LENGTH = 254;
+const MAX_PASSWORD_LENGTH = 72;
 
-app.get('/health', async (_request, response) => {
-  await pool.query('SELECT 1');
-  response.json({ ok: true });
+// Trust the deployment proxy so express-rate-limit keys on the real client IP.
+app.set('trust proxy', 1);
+
+// Send secure HTTP response headers (HSTS, no-sniff, frame protection, etc.).
+app.use(helmet());
+
+// Restrict cross-origin access to the configured frontend origin(s). A comma
+// separated CORS_ORIGIN allowlist locks the API down; when unset we fall back to
+// permissive access so local development keeps working.
+const allowedOrigins = (process.env.CORS_ORIGIN || '')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+app.use(
+  cors({
+    origin: allowedOrigins.length > 0 ? allowedOrigins : true,
+    methods: ['GET', 'POST', 'DELETE'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+  })
+);
+
+// Bound request bodies to prevent large-payload denial-of-service.
+app.use(express.json({ limit: '16kb' }));
+
+// Throttle authentication endpoints to slow down credential brute-forcing.
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many attempts. Please try again later.' }
 });
 
-app.post('/auth/signup', async (request, response) => {
+app.get('/health', async (_request, response) => {
+  try {
+    await pool.query('SELECT 1');
+    return response.json({ ok: true });
+  } catch (error) {
+    console.error('HEALTH_CHECK_ERROR', error);
+    return response.status(503).json({ ok: false });
+  }
+});
+
+app.post('/auth/signup', authLimiter, async (request, response) => {
   const { email, password } = request.body as { email?: string; password?: string };
 
-  if (!email || !password || password.length < 6) {
-    return response.status(400).json({ error: 'Email and password of at least 6 characters are required.' });
+  if (
+    typeof email !== 'string' ||
+    typeof password !== 'string' ||
+    email.length > MAX_EMAIL_LENGTH ||
+    password.length < 6 ||
+    password.length > MAX_PASSWORD_LENGTH
+  ) {
+    return response.status(400).json({ error: 'Email and a password between 6 and 72 characters are required.' });
   }
 
   const normalizedEmail = email.trim().toLowerCase();
@@ -47,10 +96,10 @@ app.post('/auth/signup', async (request, response) => {
   }
 });
 
-app.post('/auth/login', async (request, response) => {
+app.post('/auth/login', authLimiter, async (request, response) => {
   const { email, password } = request.body as { email?: string; password?: string };
 
-  if (!email || !password) {
+  if (typeof email !== 'string' || typeof password !== 'string' || !email || !password) {
     return response.status(400).json({ error: 'Email and password are required.' });
   }
 

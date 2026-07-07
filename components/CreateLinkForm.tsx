@@ -1,5 +1,7 @@
 'use client';
 
+import { Scissors } from 'lucide-react';
+
 interface CreateLinkFormProps {
   targetUrl: string;
   loading: boolean;
@@ -43,6 +45,7 @@ export function CreateLinkForm({
         {error ? <p className="error-banner">{error}</p> : null}
 
         <button className="primary-button" disabled={loading} type="submit">
+          <Scissors size={16} aria-hidden="true" />
           {loading ? 'Creating…' : 'Create Sniplet'}
         </button>
       </form>

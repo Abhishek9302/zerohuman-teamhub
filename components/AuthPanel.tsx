@@ -1,5 +1,7 @@
 'use client';
 
+import { LogIn, UserPlus } from 'lucide-react';
+
 interface AuthPanelProps {
   mode: 'login' | 'signup';
   email: string;
@@ -81,6 +83,7 @@ export function AuthPanel({
         {error ? <p className="error-banner">{error}</p> : null}
 
         <button className="primary-button" disabled={loading} type="submit">
+          {mode === 'login' ? <LogIn size={16} aria-hidden="true" /> : <UserPlus size={16} aria-hidden="true" />}
           {loading ? 'Working…' : mode === 'login' ? 'Login' : 'Create account'}
         </button>
       </form>
