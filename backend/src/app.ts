@@ -61,18 +61,17 @@ app.get('/health', async (_request, response) => {
 
 app.post('/auth/signup', authLimiter, async (request, response) => {
   const { email, password } = request.body as { email?: string; password?: string };
+  const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
 
   if (
-    typeof email !== 'string' ||
     typeof password !== 'string' ||
-    email.length > MAX_EMAIL_LENGTH ||
+    normalizedEmail.length === 0 ||
+    normalizedEmail.length > MAX_EMAIL_LENGTH ||
     password.length < 6 ||
     password.length > MAX_PASSWORD_LENGTH
   ) {
     return response.status(400).json({ error: 'Email and a password between 6 and 72 characters are required.' });
   }
-
-  const normalizedEmail = email.trim().toLowerCase();
 
   try {
     const existing = await pool.query('SELECT id FROM users WHERE email = $1', [normalizedEmail]);
@@ -97,13 +96,14 @@ app.post('/auth/signup', authLimiter, async (request, response) => {
 
 app.post('/auth/login', authLimiter, async (request, response) => {
   const { email, password } = request.body as { email?: string; password?: string };
+  const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
 
-  if (typeof email !== 'string' || typeof password !== 'string' || !email || !password) {
+  if (typeof password !== 'string' || normalizedEmail.length === 0 || password.length === 0) {
     return response.status(400).json({ error: 'Email and password are required.' });
   }
 
   try {
-    const result = await pool.query('SELECT id, email, password_hash FROM users WHERE email = $1', [email.trim().toLowerCase()]);
+    const result = await pool.query('SELECT id, email, password_hash FROM users WHERE email = $1', [normalizedEmail]);
     if (!result.rowCount) {
       return response.status(401).json({ error: 'Invalid credentials.' });
     }

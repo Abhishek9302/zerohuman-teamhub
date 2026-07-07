@@ -129,7 +129,9 @@ export default function HomePage() {
 
   function handleLogout() {
     window.localStorage.removeItem(TOKEN_KEY);
+    window.localStorage.removeItem(EMAIL_KEY);
     setToken('');
+    setEmail('');
     setLinks([]);
     setStatusMessage('Logged out.');
   }

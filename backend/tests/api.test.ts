@@ -190,6 +190,15 @@ describe('POST /auth/signup', () => {
     assert.equal(res.status, 400);
   });
 
+  test('rejects an email that becomes empty after trimming', async () => {
+    const res = await fetch(`${BASE}/auth/signup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: '   ', password: 'supersecret' })
+    });
+    assert.equal(res.status, 400);
+  });
+
   test('rejects a password shorter than 6 characters', async () => {
     const res = await fetch(`${BASE}/auth/signup`, {
       method: 'POST',
@@ -259,6 +268,15 @@ describe('POST /auth/login', () => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: 'owner@example.com' })
+    });
+    assert.equal(res.status, 400);
+  });
+
+  test('rejects an email that becomes empty after trimming', async () => {
+    const res = await fetch(`${BASE}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: '   ', password: 'supersecret' })
     });
     assert.equal(res.status, 400);
   });
