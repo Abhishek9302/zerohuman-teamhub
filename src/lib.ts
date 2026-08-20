@@ -1,40 +1,77 @@
-import { teamHubData } from './data';
-import type { Project, Task, TaskStatus } from './types';
+import type { ApiError, AuthResponse, ShortLink } from '@/src/types';
 
-export const taskStatuses: TaskStatus[] = ['Todo', 'In Progress', 'In Review', 'Done'];
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
-export function getPrimaryProject(): Project {
-  return teamHubData.projects[0];
+async function parseResponse<T>(response: Response): Promise<T> {
+  const data = (await response.json().catch(() => null)) as T | ApiError | null;
+
+  if (!response.ok) {
+    const errorMessage = data && typeof data === 'object' && 'error' in data ? data.error : 'Request failed';
+    throw new Error(errorMessage);
+  }
+
+  return data as T;
 }
 
-export function groupTasksByStatus(tasks: Task[]) {
-  return taskStatuses.map((status) => ({
-    status,
-    tasks: tasks.filter((task) => task.status === status)
-  }));
+function getApiUrl() {
+  if (!API_URL) {
+    throw new Error('NEXT_PUBLIC_API_URL is not configured.');
+  }
+
+  return API_URL;
 }
 
-export function getCalendarBuckets(tasks: Task[]) {
-  return tasks.reduce<Record<string, Task[]>>((acc, task) => {
-    const key = task.dueDate;
-    acc[key] = acc[key] ?? [];
-    acc[key].push(task);
-    return acc;
-  }, {});
+export async function signup(email: string, password: string) {
+  const response = await fetch(`${getApiUrl()}/auth/signup`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password })
+  });
+
+  return parseResponse<AuthResponse>(response);
 }
 
-export function getProjectTaskCounts(projects: Project[]) {
-  return projects.map((project) => ({
-    name: project.name,
-    total: project.tasks.length,
-    done: project.tasks.filter((task) => task.status === 'Done').length
-  }));
+export async function login(email: string, password: string) {
+  const response = await fetch(`${getApiUrl()}/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password })
+  });
+
+  return parseResponse<AuthResponse>(response);
 }
 
-export function getActivityFeed() {
-  return teamHubData.projects.flatMap((project) =>
-    project.tasks.flatMap((task) =>
-      task.activity.map((item) => ({ ...item, project: project.name }))
-    )
-  );
+export async function fetchLinks(token: string) {
+  const response = await fetch(`${getApiUrl()}/links`, {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: 'no-store'
+  });
+
+  return parseResponse<ShortLink[]>(response);
+}
+
+export async function createLink(targetUrl: string, token: string) {
+  const response = await fetch(`${getApiUrl()}/links`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify({ targetUrl })
+  });
+
+  return parseResponse<ShortLink>(response);
+}
+
+export async function deleteLink(id: number, token: string) {
+  const response = await fetch(`${getApiUrl()}/links/${id}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` }
+  });
+
+  return parseResponse<{ success: true }>(response);
+}
+
+export function getShortUrl(slug: string) {
+  return `${getApiUrl()}/r/${slug}`;
 }
